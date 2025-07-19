@@ -44,27 +44,25 @@ try:
     true_news_df['label'] = 1  # 1 para Notícias Reais
 
     # Combinar os dois DataFrames
-    # Vamos usar as colunas 'title' e 'text' para o conteúdo da notícia.
-    # O dataset original tem 'date', que não é relevante para a classificação do texto.
+    
     df = pd.concat([fake_news_df[['title', 'text', 'label']],
                     true_news_df[['title', 'text', 'label']]],
                    ignore_index=True)
 
-    # Criar uma única coluna de texto combinando título e corpo da notícia
-    # É uma prática comum, pois o título costuma ter informações importantes
+   
     df['full_text'] = df['title'] + " " + df['text']
 
-    # Verificar valores ausentes na coluna 'full_text'
+    # Verifica valores ausentes na coluna 'full_text'
     print("\nValores ausentes em 'full_text' antes do tratamento:")
     print(df['full_text'].isnull().sum())
 
-    # Preencher valores ausentes com uma string vazia para evitar erros na vetorização
+    # Preenche valores ausentes com uma string vazia para evitar erros na vetorização
     df['full_text'] = df['full_text'].fillna('')
 
     print("\nValores ausentes em 'full_text' após o tratamento:")
     print(df['full_text'].isnull().sum())
 
-    # Embaralhar o DataFrame combinado
+    # Embaralha o DataFrame combinado
     df = df.sample(frac=1, random_state=42).reset_index(drop=True)
 
     print(f"\nTotal de notícias carregadas: {len(df)}")
@@ -76,9 +74,9 @@ try:
 except Exception as e:
     print(f"Erro ao carregar o dataset: {e}")
     print("Verifique se você tem acesso ao KaggleHub ou se os arquivos CSV estão na estrutura esperada.")
-    exit() # Interrompe a execução se não conseguir carregar os dados
+    exit() 
 
-# Separar features (X) e variável alvo (y)
+# Separa features (X) e variável alvo (y)
 all_texts = df['full_text'].tolist()
 all_labels = df['label'].values
 
@@ -97,7 +95,7 @@ print(f"\nNúmero de notícias de treino: {len(X_train)}")
 print(f"Número de notícias de validação: {len(X_val)}")
 print(f"Número de notícias de teste: {len(X_test)}")
 
-# Converter para tf.data.Dataset para otimização do pipeline
+# Converte para tf.data.Dataset para otimização do pipeline
 BUFFER_SIZE = 10000
 BATCH_SIZE = 32
 
@@ -131,7 +129,7 @@ text_vectorizer = TextVectorization(
 text_for_adaptation = tf.data.Dataset.from_tensor_slices(X_train)
 text_vectorizer.adapt(text_for_adaptation)
 
-# Visualizar o vocabulário construído
+# Visualiza o vocabulário construído
 print(f"\nTamanho do vocabulário gerado: {len(text_vectorizer.get_vocabulary())}")
 print("Primeiras 10 palavras do vocabulário:", text_vectorizer.get_vocabulary()[:10])
 
@@ -145,7 +143,7 @@ train_ds_vectorized = train_ds.map(vectorize_text_and_label).cache().prefetch(BU
 val_ds_vectorized = val_ds.map(vectorize_text_and_label).cache().prefetch(BUFFER_SIZE)
 test_ds_vectorized = test_ds.map(vectorize_text_and_label).cache().prefetch(BUFFER_SIZE)
 
-# Verificar o formato dos dados após a vetorização
+# Verifica o formato dos dados após a vetorização
 print("\nVerificando formato dos dados vetorizados:")
 for text_batch, label_batch in train_ds_vectorized.take(1):
     print(f"Shape do lote de texto vetorizado: {text_batch.shape}")
@@ -156,7 +154,7 @@ for text_batch, label_batch in train_ds_vectorized.take(1):
 
 """
 
-EMBEDDING_DIM = 300 # Aumentei a dimensão dos embeddings para capturar mais complexidade. Ajuste este valor!
+EMBEDDING_DIM = 300 
 
 model = Sequential([
     # Camada de Embedding: Converte IDs de palavras em vetores densos
@@ -165,7 +163,7 @@ model = Sequential([
     # GlobalAveragePooling1D: Reduz a sequência de vetores para um único vetor por notícia
     GlobalAveragePooling1D(),
 
-    # Camadas Densas (Fully Connected)
+    # Camadas Densas
     Dense(512), # Mais neurônios para um dataset maior/mais complexo
     BatchNormalization(),
     tf.keras.layers.Activation('relu'),
@@ -196,7 +194,7 @@ model.summary()
 
 """
 
-EPOCHS = 100 # Aumentei o número máximo de épocas, pois o EarlyStopping vai parar antes se necessário
+EPOCHS = 100 
 
 # Callback EarlyStopping: Para o treinamento quando a métrica de validação não melhora.
 early_stopping = EarlyStopping(
@@ -205,7 +203,7 @@ early_stopping = EarlyStopping(
     restore_best_weights=True
 )
 
-# Callback ReduceLROnPlateau: Reduz a taxa de aprendizado quando a métrica de validação estagna.
+# Callback ReduceLROnPlateau
 reduce_lr = ReduceLROnPlateau(
     monitor='val_loss',
     factor=0.2, # Reduz a LR em 80%
@@ -218,7 +216,7 @@ print("\nIniciando treinamento do modelo...")
 history = model.fit(
     train_ds_vectorized,
     epochs=EPOCHS,
-    validation_data=val_ds_vectorized, # Corrected variable name
+    validation_data=val_ds_vectorized, 
     callbacks=[early_stopping, reduce_lr]
 )
 print("Treinamento concluído.")
@@ -259,12 +257,9 @@ loss, accuracy = model.evaluate(test_ds_vectorized)
 print(f"Perda no conjunto de teste: {loss:.4f}")
 print(f"Acurácia no conjunto de teste: {accuracy:.4f}")
 
-# Para gerar um relatório de classificação mais detalhado
 y_pred_probs = model.predict(test_ds_vectorized)
 y_pred = (y_pred_probs > 0.5).astype("int32")
 
-# Coletar os rótulos verdadeiros do conjunto de teste (necessário iterar o test_ds original para obter os labels)
-# O test_ds_vectorized só tem os batches vetorizados, precisamos dos labels originais
 y_true_test_labels = []
 for _, label_batch in test_ds.as_numpy_iterator():
     y_true_test_labels.extend(label_batch)
@@ -316,19 +311,15 @@ for i, article_text in enumerate(new_news_articles):
 
 print("\n--- Salvando o modelo para deployment no Streamlit ---")
 
-# Criar um novo modelo Sequential que inclui a camada de vetorização
-# Isso cria um pipeline completo de texto bruto -> previsão
+# Cria um novo modelo Sequential que inclui a camada de vetorização
 deploy_model = tf.keras.Sequential([
   text_vectorizer,  # Primeira camada: converte texto em vetores
-  model             # Segunda camada: seu modelo treinado que recebe os vetores
+  model             # Segunda camada: modelo treinado que recebe os vetores
 ])
 
-# O novo modelo agora tem 2 camadas, mas a lógica de previsão é a mesma.
-# Vamos verificar a previsão com ele para garantir que está funcionando.
+
 print("\nTestando o modelo de deployment com as mesmas notícias de exemplo:")
-# Assumindo que 'new_news_articles' está definido em uma seção anterior para teste
-# Se não estiver, você pode definir uma pequena lista aqui para o teste de salvamento
-# new_news_articles = ["This is a test article.", "Another test phrase."]
+
 predictions_deploy = deploy_model.predict(tf.constant(new_news_articles))
 
 # Exibe as previsões para confirmar
@@ -339,39 +330,25 @@ for i, article_text in enumerate(new_news_articles):
     print(f"Notícia: '{article_text[:60]}...' -> Previsão do deploy_model: {predicted_class}")
 
 
-# Salvar o modelo completo em um único arquivo no formato Keras v3
-# Este é o único arquivo que você precisará para a sua aplicação Streamlit.
-deploy_model.save("fake_news_classifier.keras") # <--- Este é o arquivo principal a ser usado no Streamlit
+
+deploy_model.save("fake_news_classifier.keras") 
 
 print("\nModelo completo salvo com sucesso como 'fake_news_classifier.keras'")
 print("Faça o download deste arquivo do seu ambiente Colab para usá-lo com o Streamlit.")
 
-# --- As linhas abaixo não são mais estritamente necessárias se você usar o .keras completo ---
-# --- Mantenha-as COMENTADAS ou REMOVIDAS para evitar confusão de arquivos ---
-# model_save_path = 'fake_news_detector_model.h5'
-# vectorizer_save_path = 'text_vectorizer_config.json'
-# model.save(model_save_path) # Você pode remover esta linha
-# print(f"Modelo salvo em: {model_save_path}")
-# import json # Pode remover se não for usar mais
-# vectorizer_config = {'config': text_vectorizer.get_config(), 'weights': text_vectorizer.get_weights()}
-# with open(vectorizer_save_path, 'w') as f:
-#     json.dump(vectorizer_config, f) # Você pode remover esta linha
-# print(f"TextVectorizer salvo em: {vectorizer_save_path}")
-# print("\nModelo e TextVectorizer salvos com sucesso!")
 
 # --- 7. SALVANDO O MODELO COMPLETO PARA DEPLOYMENT ---
 
 print("\n--- Salvando o modelo para deployment no Streamlit ---")
 
-# Criar um novo modelo Sequential que inclui a camada de vetorização
-# Isso cria um pipeline completo de texto bruto -> previsão
+# Cria um novo modelo Sequential que inclui a camada de vetorização
+
 deploy_model = tf.keras.Sequential([
   text_vectorizer,  # Primeira camada: converte texto em vetores
   model             # Segunda camada: seu modelo treinado que recebe os vetores
 ])
 
-# O novo modelo agora tem 2 camadas, mas a lógica de previsão é a mesma.
-# Vamos verificar a previsão com ele para garantir que está funcionando.
+
 print("\nTestando o modelo de deployment com as mesmas notícias de exemplo:")
 predictions_deploy = deploy_model.predict(tf.constant(new_news_articles))
 
@@ -382,8 +359,8 @@ for i, article_text in enumerate(new_news_articles):
     print(f"Notícia: '{article_text[:60]}...' -> Previsão do deploy_model: {predicted_class}")
 
 
-# Salvar o modelo completo em um único arquivo no formato Keras v3
-# Este é o único arquivo que você precisará para a sua aplicação Streamlit.
+# Salva o modelo completo em um único arquivo no formato Keras v3
+
 deploy_model.save("fake_news_classifier.keras")
 
 print("\nModelo completo salvo com sucesso como 'fake_news_classifier.keras'")
