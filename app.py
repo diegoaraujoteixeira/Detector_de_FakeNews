@@ -98,9 +98,7 @@ def main():
         else:
             st.warning('Por favor, digite ou cole o texto de uma notícia para classificar.')
 
-    st.markdown("---")
-    st.write("Desenvolvido com TensorFlow e Streamlit")
-    st.write("Para treinar o modelo, execute `python model_trainer.py` e faça o upload do arquivo `fake_news_classifier.keras` para o Google Drive e atualize o ID neste script.")
+    
 
 if __name__ == "__main__":
     main()
